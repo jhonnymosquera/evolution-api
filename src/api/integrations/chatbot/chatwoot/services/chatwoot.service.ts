@@ -607,11 +607,15 @@ export class ChatwootService {
       this.logger.verbose(`--- Start createConversation ---`);
       this.logger.verbose(`Instance: ${JSON.stringify(instance)}`);
 
-      // If it already exists in the cache, return conversationId
+      // If it already exists in cache
       if (await this.cache.has(cacheKey)) {
         const conversationId = (await this.cache.get(cacheKey)) as number;
         this.logger.verbose(`Found conversation to: ${remoteJid}, conversation ID: ${conversationId}`);
-        return conversationId;
+        // If not reopening behavior, return immediately
+        if (!this.provider?.reopenConversation) {
+          return conversationId;
+        }
+        // Otherwise, continue the flow to ensure status is set to 'open'
       }
 
       // If lock already exists, wait until release or timeout
@@ -642,7 +646,10 @@ export class ChatwootService {
         Utilizei uma nova verificação para evitar que outra thread execute entre o terminio do while e o set lock
         */
         if (await this.cache.has(cacheKey)) {
-          return (await this.cache.get(cacheKey)) as number;
+          if (!this.provider?.reopenConversation) {
+            return (await this.cache.get(cacheKey)) as number;
+          }
+          // continue to reopen to 'open' if needed
         }
 
         const client = await this.clientCw(instance);
@@ -756,12 +763,12 @@ export class ChatwootService {
         if (inboxConversation) {
           if (this.provider.reopenConversation) {
             this.logger.verbose(`Found conversation in reopenConversation mode: ${JSON.stringify(inboxConversation)}`);
-            if (inboxConversation && this.provider.conversationPending && inboxConversation.status !== 'open') {
+            if (inboxConversation && inboxConversation.status !== 'open') {
               await client.conversations.toggleStatus({
                 accountId: this.provider.accountId,
                 conversationId: inboxConversation.id,
                 data: {
-                  status: 'pending',
+                  status: 'open',
                 },
               });
             }
@@ -785,7 +792,9 @@ export class ChatwootService {
           inbox_id: filterInbox.id.toString(),
         };
 
-        if (this.provider.conversationPending) {
+        if (this.provider.reopenConversation) {
+          data['status'] = 'open';
+        } else if (this.provider.conversationPending) {
           data['status'] = 'pending';
         }
 
@@ -794,7 +803,10 @@ export class ChatwootService {
         Utilizei uma nova verificação para evitar que outra thread execute entre o terminio do while e o set lock
         */
         if (await this.cache.has(cacheKey)) {
-          return (await this.cache.get(cacheKey)) as number;
+          if (!this.provider?.reopenConversation) {
+            return (await this.cache.get(cacheKey)) as number;
+          }
+          // continue to reopen to 'open' if needed
         }
 
         const conversation = await client.conversations.create({
@@ -1250,14 +1262,9 @@ export class ChatwootService {
         return null;
       }
 
-      if (
-        this.provider.reopenConversation === false &&
-        body.event === 'conversation_status_changed' &&
-        body.status === 'resolved' &&
-        body.meta?.sender?.identifier
-      ) {
+      if (body.event === 'conversation_status_changed' && body.status === 'resolved' && body.meta?.sender?.identifier) {
         const keyToDelete = `${instance.instanceName}:createConversation-${body.meta.sender.identifier}`;
-        this.cache.delete(keyToDelete);
+        await this.cache.delete(keyToDelete);
       }
 
       if (
