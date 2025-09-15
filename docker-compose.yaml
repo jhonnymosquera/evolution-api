@@ -1,13 +1,11 @@
-version: "3.8"
-
 services:
   api:
     container_name: evolution_api_iautomatic
     image: evoapicloud/evolution-api:latest
     restart: always
-    depends_on:
-      - redis
-      - evolution-postgres
+    # depends_on:
+    #   - redis
+    #   - evolution-postgres
     # ports:
       # - "127.0.0.1:8080:8080"
     volumes:
