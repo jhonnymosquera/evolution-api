@@ -13,7 +13,6 @@ services:
     volumes:
       - evolution_instances:/evolution/instances
     networks:
-      - evolution-net
       - dokploy-network
     env_file:
       - .env
@@ -24,8 +23,5 @@ volumes:
   evolution_instances:
 
 networks:
-  evolution-net:
-    name: evolution-net
-    driver: bridge
   dokploy-network:
     external: true
