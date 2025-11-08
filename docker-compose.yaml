@@ -1,7 +1,7 @@
 services:
   api:
-    container_name: evolution_api_iautomatic
-    image: evoapicloud/evolution-api:latest
+    container_name: evolution_api_iautomatic2
+    image: evoapicloud/evolution-api:v2.3.6
     restart: always
     # depends_on:
     #   - redis
